@@ -153,7 +153,7 @@ def replace_dsl(text, start, end, isbn2book):
         i = j
 
     # parse.
-    book_dsl = pytoml.loads(''.join(toml_stats))
+    book_dsl = pytoml.loads(''.join(toml_stats).replace('\\', '\\\\'))
     return render_dsl(book_dsl, isbn2book)
 
 
