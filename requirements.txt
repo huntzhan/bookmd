@@ -3,3 +3,4 @@ future
 pytoml==0.1.11
 grequests
 magic_constraints
+click

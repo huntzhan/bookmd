@@ -59,7 +59,7 @@ setup(
     install_requires=load_requirements('requirements.txt'),
     entry_points={
         'console_scripts': [
-            'bookmd_cli = bookmd.main:entry_point'
+            'bookmd = bookmd.main:entry_point'
         ],
     },
 )
