@@ -244,41 +244,42 @@ def generate_list(isbn2book, keys):
 
 
 def generate_table(isbn2book, keys):
-    if not keys:
-        keys = '[{title}]({alt}) | {author[0]} | {rating[average]} |'
-        header = (
-            '| title | author | rating |\n'
-            '| --- | --- | --- |'
+
+    def table_line(cells):
+        return '| {0} |'.format(
+            ' | '.join(cells),
         )
-    else:
-        keys = list(map(lambda k: k.strip(), keys.split(',')))
 
-        line1 = ' | '.join(keys)
-        line2 = ' | '.join(['---'] * len(keys))
+    def table_bar(cell_size):
+        return table_line(['---'] * cell_size)
 
-        header = '|{0}|\n|{1}|'.format(line1, line2)
+    def key2dsl(key):
+        if key == 'title':
+            return '[{title}]({alt})'
+        else:
+            return '{{{0}}}'.format(key)
 
-        keys = ' | '.join(map(
-            lambda key: '{' + key + '}',
-            keys,
-        ))
-        keys = keys + '|'
+    keys = split_keys(keys, 'title,author[0],rating[average]')
 
-    lines = [header]
+    lines = []
+
+    default_template = generate_default_template(
+        table_line(map(key2dsl, keys)),
+    )
+    lines.append(default_template)
+
+    lines.append(
+        table_line(keys),
+    )
+    lines.append(
+        table_bar(len(keys)),
+    )
+
     for isbn, book in isbn2book.items():
-        template = [
-            '|',
-            '<!-- {title} --> '.format(title=book['title']),
-            keys,
-        ]
-        template = ' '.join(template)
+        book_dsl = generate_book_dsl(
+            isbn, book['title'],
+        )
 
-        line = [
-            '{{',
-            'isbn="{isbn}"'.format(isbn=isbn),
-            'template="{template}"'.format(template=template),
-            '}}',
-        ]
-        lines.append(' '.join(line))
+        lines.append(book_dsl)
 
     return '\n'.join(lines)
