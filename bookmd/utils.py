@@ -197,7 +197,7 @@ def extract_default_template(text):
         # html comment end.
         r'[ \t]*\-\-\>'
         # optional newline.
-        r'[\n]'
+        r'[\n]?'
     )
 
     match = re.search(DEFAULT_TEMPLATE_PATTERN, text)
