@@ -159,8 +159,8 @@ def replace_dsl(text, start, end, isbn2book, default_template):
 
 
 def replace_all_dsl(text, isbn2book):
+    text, default_template = extract_default_template(text)
     n = len(text)
-    default_template = extract_default_template(text)
 
     # find first stat.
     i, j = find_dsl(text, 0)
@@ -196,13 +196,17 @@ def extract_default_template(text):
         r'[ \t]*"(.*?)"'
         # html comment end.
         r'[ \t]*\-\-\>'
+        # optional newline.
+        r'[\n]'
     )
 
     match = re.search(DEFAULT_TEMPLATE_PATTERN, text)
+    text = re.sub(DEFAULT_TEMPLATE_PATTERN, '', text)
+
     if match is None:
-        return None
+        return text, None
     else:
-        return match.group(1)
+        return text, match.group(1)
 
 
 def generate_book_dsl(isbn, title):

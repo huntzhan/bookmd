@@ -36,5 +36,11 @@ def test_extract_default_template():
         '<!--  bookmd-default-template  : "abc"-->'
         'afjeaifajeif'
     )
-    assert 'abc' == extract_default_template(text)
-    assert extract_default_template('afjeifjaeif') is None
+    a, b = extract_default_template(text)
+    assert 'bookmd' not in a
+    assert 'abc' == b
+
+    text = 'afjeifjaeif'
+    a, b = extract_default_template(text)
+    assert a == text
+    assert b is None
