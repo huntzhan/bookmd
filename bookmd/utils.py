@@ -8,6 +8,7 @@ from future.builtins.disabled import *  # noqa
 import re
 from os import listdir
 from os.path import isdir, join
+from operator import methodcaller
 
 import pytoml
 
@@ -112,9 +113,9 @@ def find_dsl(text, offset):
     return None, None
 
 
-def render_dsl(book_dsl, isbn2book):
+def render_dsl(book_dsl, isbn2book, default_template):
     isbn = book_dsl.get('isbn', None)
-    template = book_dsl.get('template', None)
+    template = book_dsl.get('template', None) or default_template
 
     # check field.
     if isbn is None or template is None:
@@ -126,7 +127,7 @@ def render_dsl(book_dsl, isbn2book):
     return template.format(**isbn2book[isbn])
 
 
-def replace_dsl(text, start, end, isbn2book):
+def replace_dsl(text, start, end, isbn2book, default_template):
     # {{......}}
     #   ^ i   ^ end
     i = start + 2
@@ -154,11 +155,12 @@ def replace_dsl(text, start, end, isbn2book):
 
     # parse.
     book_dsl = pytoml.loads(''.join(toml_stats).replace('\\', '\\\\'))
-    return render_dsl(book_dsl, isbn2book)
+    return render_dsl(book_dsl, isbn2book, default_template)
 
 
 def replace_all_dsl(text, isbn2book):
     n = len(text)
+    default_template = extract_default_template(text)
 
     # find first stat.
     i, j = find_dsl(text, 0)
@@ -172,7 +174,7 @@ def replace_all_dsl(text, isbn2book):
         # gap.
         doc.append(text[begin:i])
         # process stat.
-        doc.append(replace_dsl(text, i, j, isbn2book))
+        doc.append(replace_dsl(text, i, j, isbn2book, default_template))
 
         # move to next stat.
         begin = j + 1
@@ -184,31 +186,59 @@ def replace_all_dsl(text, isbn2book):
     return ''.join(doc)
 
 
-def generate_list(isbn2book, keys):
-    if not keys:
-        keys = '{title}'
-    else:
-        keys = ', '.join(map(
-            lambda key: '{' + key.strip() + '}',
-            keys.split(','),
-        ))
-
-    template = (
-        '[{keys}]({{alt}})'
+def extract_default_template(text):
+    DEFAULT_TEMPLATE_PATTERN = (
+        # html comment begin.
+        r'\<\!\-\-[ \t]*'
+        # bookmd-default-template:
+        r'bookmd\-default\-template[ \t]*\:'
+        # "xxx"
+        r'[ \t]*"(.*?)"'
+        # html comment end.
+        r'[ \t]*\-\-\>'
     )
-    template = template.format(keys=keys)
+
+    match = re.search(DEFAULT_TEMPLATE_PATTERN, text)
+    if match is None:
+        return None
+    else:
+        return match.group(1)
+
+
+def generate_book_dsl(isbn, title):
+    return '{{{{ isbn="{isbn}" # {title} }}}}'.format(
+        isbn=isbn, title=title,
+    )
+
+
+def generate_default_template(template):
+    return '<!-- bookmd-default-template: "{0}" -->'.format(template)
+
+
+def split_keys(keys, default=''):
+    keys = keys or default
+    return list(filter(bool, map(methodcaller('strip'), keys.split(','))))
+
+
+def generate_list(isbn2book, keys):
+    keys = split_keys(keys, 'title')
 
     lines = []
+
+    default_template = generate_default_template(
+        '[{0}]({{alt}})'.format(
+            ', '.join(map('{{{0}}}'.format, keys)),
+        ),
+    )
+    lines.append(default_template)
+
     for isbn, book in isbn2book.items():
-        line = [
-            '*',
-            '<!-- {title} -->'.format(title=book['title']),
-            '{{',
-            'isbn="{isbn}"'.format(isbn=isbn),
-            'template="{template}"'.format(template=template),
-            '}}',
-        ]
-        lines.append(' '.join(line))
+        book_dsl = generate_book_dsl(
+            isbn, book['title'],
+        )
+        line = '* {0}'.format(book_dsl)
+
+        lines.append(line)
 
     return '\n'.join(lines)
 
