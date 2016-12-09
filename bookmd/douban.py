@@ -18,7 +18,7 @@ _ValueType = Union[_T1, _T2, _T3]
 
 
 def extract_isbn_from_url(url):
-    return url.rsplit('/', 1)
+    return url.rsplit('/', 1)[-1]
 
 
 # json response of douban api.
@@ -32,6 +32,7 @@ def process_response(response):
 
     # wrong isbn.
     if response.status_code != 200:
+        print(data)
         return False, extract_isbn_from_url(data['request']), None
 
     isbn = data['isbn13']

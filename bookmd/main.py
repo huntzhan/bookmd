@@ -12,10 +12,14 @@ import click
 
 from .douban import query_books_with_retry
 from .utils import (
-    extract_isbns_from_directory, load_toml, dump_toml,
+    extract_isbns_from_directory,
+    load_book_cache,
+    dump_book_cache,
     replace_all_dsl,
-    load_file, write_file,
-    generate_list, generate_table,
+    load_file,
+    write_file,
+    generate_list,
+    generate_table,
 )
 
 
@@ -24,7 +28,7 @@ click.disable_unicode_literals_warning = True
 
 ISBN_DIRNAME = 'isbn'
 BOOK_DATABASE = '.bookmd-db'
-BOOK_TOML = 'bookmd.toml'
+BOOK_CACHE = 'bookmd.json'
 
 
 def dirpath(dirname):
@@ -63,19 +67,19 @@ def init():
             mkdir(path)
 
     # files.
-    TOML_PATH = database_path(BOOK_TOML)
-    if not exists(TOML_PATH):
-        dump_toml(TOML_PATH, {})
+    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
+    if not exists(BOOK_CACHE_PATH):
+        dump_book_cache(BOOK_CACHE_PATH, {})
 
 
 @click.command()
 @enable_profile
 def query():
     ISBN_DIRPATH = dirpath(ISBN_DIRNAME)
-    TOML_PATH = database_path(BOOK_TOML)
+    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
 
     isbns = extract_isbns_from_directory(ISBN_DIRPATH)
-    isbn2book = load_toml(TOML_PATH)
+    isbn2book = load_book_cache(BOOK_CACHE_PATH)
 
     new_isbns = filter(
         lambda isbn: isbn not in isbn2book,
@@ -90,7 +94,7 @@ def query():
         raise RuntimeError('request_error_isbns')
 
     isbn2book.update(new_isbn2book)
-    dump_toml(TOML_PATH, isbn2book)
+    dump_book_cache(BOOK_CACHE_PATH, isbn2book)
 
 
 @click.command()
@@ -99,8 +103,8 @@ def query():
 @click.argument('dst', type=click.Path())
 @enable_profile
 def template(form, keys, dst):
-    TOML_PATH = database_path(BOOK_TOML)
-    isbn2book = load_toml(TOML_PATH)
+    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
+    isbn2book = load_book_cache(BOOK_CACHE_PATH)
 
     FORM_GENERATOR = {
         'list': generate_list,
@@ -118,10 +122,10 @@ def template(form, keys, dst):
 @click.argument('dst', type=click.Path())
 @enable_profile
 def transform(src, dst):
-    TOML_PATH = database_path(BOOK_TOML)
+    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
 
     text = load_file(src)
-    isbn2book = load_toml(TOML_PATH)
+    isbn2book = load_book_cache(BOOK_CACHE_PATH)
 
     processed = replace_all_dsl(text, isbn2book)
 

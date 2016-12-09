@@ -9,6 +9,7 @@ import re
 from os import listdir
 from os.path import isdir, join
 from operator import methodcaller
+import json
 
 import pytoml
 
@@ -52,12 +53,15 @@ def extract_isbns_from_directory(dir_path):
     return set(isbns)
 
 
-def load_toml(path):
-    return pytoml.loads(load_file(path))
+def load_book_cache(path):
+    return json.loads(load_file(path))
 
 
-def dump_toml(path, obj):
-    write_file(path, pytoml.dumps(obj))
+def dump_book_cache(path, obj):
+    data = json.dumps(obj, sort_keys=True, indent=4)
+    if isinstance(data, bytes):
+        data = data.decode('utf-8')
+    write_file(path, data)
 
 
 def expend_str(text, start):
