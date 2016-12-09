@@ -15,6 +15,7 @@ from .utils import (
     extract_isbns_from_directory, load_toml, dump_toml,
     replace_all_dsl,
     load_file, write_file,
+    generate_list, generate_table,
 )
 
 
@@ -80,74 +81,6 @@ def template(form, keys, dst):
     TOML_PATH = database_path(BOOK_TOML)
     isbn2book = load_toml(TOML_PATH)
 
-    def generate_list(keys):
-        if not keys:
-            keys = '{title}'
-        else:
-            keys = ', '.join(map(
-                lambda key: '{' + key.strip() + '}',
-                keys.split(','),
-            ))
-
-        template = (
-            '[{keys}]({{alt}})'
-        )
-        template = template.format(keys=keys)
-
-        lines = []
-        for isbn, book in isbn2book.items():
-            line = [
-                '*',
-                '<!-- {title} -->'.format(title=book['title']),
-                '{{',
-                'isbn="{isbn}"'.format(isbn=isbn),
-                'template="{template}"'.format(template=template),
-                '}}',
-            ]
-            lines.append(' '.join(line))
-
-        return '\n'.join(lines)
-
-    def generate_table(keys):
-        if not keys:
-            keys = '[{title}]({alt}) | {author[0]} | {rating[average]} |'
-            header = (
-                '| title | author | rating |\n'
-                '| --- | --- | --- |'
-            )
-        else:
-            keys = list(map(lambda k: k.strip(), keys.split(',')))
-
-            line1 = ' | '.join(keys)
-            line2 = ' | '.join(['---'] * len(keys))
-
-            header = '|{0}|\n|{1}|'.format(line1, line2)
-
-            keys = ' | '.join(map(
-                lambda key: '{' + key + '}',
-                keys,
-            ))
-            keys = keys + '|'
-
-        lines = [header]
-        for isbn, book in isbn2book.items():
-            template = [
-                '|',
-                '<!-- {title} --> '.format(title=book['title']),
-                keys,
-            ]
-            template = ' '.join(template)
-
-            line = [
-                '{{',
-                'isbn="{isbn}"'.format(isbn=isbn),
-                'template="{template}"'.format(template=template),
-                '}}',
-            ]
-            lines.append(' '.join(line))
-
-        return '\n'.join(lines)
-
     FORM_GENERATOR = {
         'list': generate_list,
         'table': generate_table,
@@ -156,7 +89,7 @@ def template(form, keys, dst):
     if form not in FORM_GENERATOR:
         raise RuntimeError('invalid form.')
 
-    write_file(dst, FORM_GENERATOR[form](keys))
+    write_file(dst, FORM_GENERATOR[form](isbn2book, keys))
 
 
 @click.command()

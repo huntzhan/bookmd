@@ -182,3 +182,73 @@ def replace_all_dsl(text, isbn2book):
         doc.append(text[begin:])
 
     return ''.join(doc)
+
+
+def generate_list(isbn2book, keys):
+    if not keys:
+        keys = '{title}'
+    else:
+        keys = ', '.join(map(
+            lambda key: '{' + key.strip() + '}',
+            keys.split(','),
+        ))
+
+    template = (
+        '[{keys}]({{alt}})'
+    )
+    template = template.format(keys=keys)
+
+    lines = []
+    for isbn, book in isbn2book.items():
+        line = [
+            '*',
+            '<!-- {title} -->'.format(title=book['title']),
+            '{{',
+            'isbn="{isbn}"'.format(isbn=isbn),
+            'template="{template}"'.format(template=template),
+            '}}',
+        ]
+        lines.append(' '.join(line))
+
+    return '\n'.join(lines)
+
+
+def generate_table(isbn2book, keys):
+    if not keys:
+        keys = '[{title}]({alt}) | {author[0]} | {rating[average]} |'
+        header = (
+            '| title | author | rating |\n'
+            '| --- | --- | --- |'
+        )
+    else:
+        keys = list(map(lambda k: k.strip(), keys.split(',')))
+
+        line1 = ' | '.join(keys)
+        line2 = ' | '.join(['---'] * len(keys))
+
+        header = '|{0}|\n|{1}|'.format(line1, line2)
+
+        keys = ' | '.join(map(
+            lambda key: '{' + key + '}',
+            keys,
+        ))
+        keys = keys + '|'
+
+    lines = [header]
+    for isbn, book in isbn2book.items():
+        template = [
+            '|',
+            '<!-- {title} --> '.format(title=book['title']),
+            keys,
+        ]
+        template = ' '.join(template)
+
+        line = [
+            '{{',
+            'isbn="{isbn}"'.format(isbn=isbn),
+            'template="{template}"'.format(template=template),
+            '}}',
+        ]
+        lines.append(' '.join(line))
+
+    return '\n'.join(lines)
