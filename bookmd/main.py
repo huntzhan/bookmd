@@ -9,6 +9,7 @@ from os import getcwd, mkdir
 from os.path import join, exists
 
 import click
+import bookmd.click_patch  # noqa
 
 from .douban import query_books_with_retry
 from .utils import (
@@ -21,9 +22,6 @@ from .utils import (
     generate_list,
     generate_table,
 )
-
-
-click.disable_unicode_literals_warning = True
 
 
 ISBN_DIRNAME = 'isbn'
@@ -39,26 +37,7 @@ def database_path(name):
     return join(dirpath(BOOK_DATABASE), name)
 
 
-def enable_profile(func):
-    import cProfile
-    from functools import wraps
-
-    @click.option('--profile/--no-profile', default=False)
-    @wraps(func)
-    def wrapper(profile, *args, **kwargs):
-        if profile:
-            cProfile.runctx(
-                'func(*args, **kwargs)', globals(), locals(),
-                sort='cumtime',
-            )
-        else:
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
 @click.command()
-@enable_profile
 def init():
     # directories.
     for path in map(lambda dirname: dirpath(dirname),
@@ -73,7 +52,6 @@ def init():
 
 
 @click.command()
-@enable_profile
 def query():
     ISBN_DIRPATH = dirpath(ISBN_DIRNAME)
     BOOK_CACHE_PATH = database_path(BOOK_CACHE)
@@ -101,7 +79,6 @@ def query():
 @click.argument('form')
 @click.option('--keys', default=None)
 @click.argument('dst', type=click.Path())
-@enable_profile
 def template(form, keys, dst):
     BOOK_CACHE_PATH = database_path(BOOK_CACHE)
     isbn2book = load_book_cache(BOOK_CACHE_PATH)
@@ -120,7 +97,6 @@ def template(form, keys, dst):
 @click.command()
 @click.argument('src', type=click.Path(exists=True))
 @click.argument('dst', type=click.Path())
-@enable_profile
 def transform(src, dst):
     BOOK_CACHE_PATH = database_path(BOOK_CACHE)
 
