@@ -24,11 +24,12 @@ def extract_isbn_from_url(url):
 # json response of douban api.
 # return: bool(success), str(isbn13), obj
 def process_response(response):
-    data = response.json()
-
     # connection error or timeout.
     if response is None:
+        print('process_response: None')
         return False, None, None
+
+    data = response.json()
 
     # wrong isbn.
     if response.status_code != 200:
@@ -111,3 +112,11 @@ def query_books_with_retry(isbns, retry=3):
 
     request_error_isbns = list(isbns)
     return not_found_isbns, request_error_isbns, isbn2book
+
+
+def query_single_book(isbn):
+    e1, e2, isbn2book = query_books_with_retry([isbn])
+    if e1 or e2:
+        raise RuntimeError('query_single_book')
+    else:
+        return isbn2book[isbn]

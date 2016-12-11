@@ -11,11 +11,9 @@ from os.path import join, exists
 import click
 import bookmd.click_patch  # noqa
 
-from .douban import query_books_with_retry
+from .db import db_manager
 from .utils import (
     extract_isbns_from_directory,
-    load_book_cache,
-    dump_book_cache,
     replace_all_dsl,
     load_file,
     write_file,
@@ -24,65 +22,35 @@ from .utils import (
 )
 
 
-ISBN_DIRNAME = 'isbn'
-BOOK_DATABASE = '.bookmd-db'
-BOOK_CACHE = 'bookmd.json'
-
-
 def dirpath(dirname):
     return join(getcwd(), dirname)
 
 
-def database_path(name):
-    return join(dirpath(BOOK_DATABASE), name)
+ISBN_DIRPATH = dirpath('isbn')
+BOOK_DATABASE = dirpath('.bookmd-db')
 
 
 @click.command()
 def init():
     # directories.
-    for path in map(lambda dirname: dirpath(dirname),
-                    [ISBN_DIRNAME, BOOK_DATABASE]):
+    for path in [ISBN_DIRPATH, BOOK_DATABASE]:
         if not exists(path):
             mkdir(path)
 
-    # files.
-    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
-    if not exists(BOOK_CACHE_PATH):
-        dump_book_cache(BOOK_CACHE_PATH, {})
-
 
 @click.command()
-def query():
-    ISBN_DIRPATH = dirpath(ISBN_DIRNAME)
-    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
-
+@db_manager(BOOK_DATABASE)
+def query(db_manager):
     isbns = extract_isbns_from_directory(ISBN_DIRPATH)
-    isbn2book = load_book_cache(BOOK_CACHE_PATH)
-
-    new_isbns = filter(
-        lambda isbn: isbn not in isbn2book,
-        isbns,
-    )
-    ret = query_books_with_retry(new_isbns)
-    not_found_isbns, request_error_isbns, new_isbn2book = ret
-
-    if not_found_isbns:
-        raise RuntimeError('not_found_isbns')
-    if request_error_isbns:
-        raise RuntimeError('request_error_isbns')
-
-    isbn2book.update(new_isbn2book)
-    dump_book_cache(BOOK_CACHE_PATH, isbn2book)
+    db_manager.books(isbns)
 
 
 @click.command()
 @click.argument('form')
 @click.option('--keys', default=None)
 @click.argument('dst', type=click.Path())
-def template(form, keys, dst):
-    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
-    isbn2book = load_book_cache(BOOK_CACHE_PATH)
-
+@db_manager(BOOK_DATABASE)
+def template(db_manager, form, keys, dst):
     FORM_GENERATOR = {
         'list': generate_list,
         'table': generate_table,
@@ -91,20 +59,16 @@ def template(form, keys, dst):
     if form not in FORM_GENERATOR:
         raise RuntimeError('invalid form.')
 
-    write_file(dst, FORM_GENERATOR[form](isbn2book, keys))
+    write_file(dst, FORM_GENERATOR[form](db_manager.isbn2book, keys))
 
 
 @click.command()
 @click.argument('src', type=click.Path(exists=True))
 @click.argument('dst', type=click.Path())
-def transform(src, dst):
-    BOOK_CACHE_PATH = database_path(BOOK_CACHE)
-
+@db_manager(BOOK_DATABASE)
+def transform(db_manager, src, dst):
     text = load_file(src)
-    isbn2book = load_book_cache(BOOK_CACHE_PATH)
-
-    processed = replace_all_dsl(text, isbn2book)
-
+    processed = replace_all_dsl(text, db_manager)
     write_file(dst, processed)
 
 

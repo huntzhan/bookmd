@@ -9,7 +9,6 @@ import re
 from os import listdir
 from os.path import isdir, join
 from operator import methodcaller
-import json
 
 import pytoml
 
@@ -23,7 +22,7 @@ def write_file(path, content):
         fout.write(content)
 
 
-def load_directory(path):
+def load_directory(path, name_filter_func=lambda name: True):
     if not isdir(path):
         raise RuntimeError('invalid directory path: {0}'.format(path))
 
@@ -32,7 +31,10 @@ def load_directory(path):
 
     return filter(
         bool,
-        map(join_path, listdir(path)),
+        map(
+            join_path,
+            filter(name_filter_func, listdir(path)),
+        ),
     )
 
 
@@ -51,17 +53,6 @@ def extract_isbns_from_directory(dir_path):
     for file_path in load_directory(dir_path):
         isbns.extend(extract_isbns(file_path))
     return set(isbns)
-
-
-def load_book_cache(path):
-    return json.loads(load_file(path))
-
-
-def dump_book_cache(path, obj):
-    data = json.dumps(obj, sort_keys=True, indent=4)
-    if isinstance(data, bytes):
-        data = data.decode('utf-8')
-    write_file(path, data)
 
 
 def expend_str(text, start):
@@ -117,7 +108,7 @@ def find_dsl(text, offset):
     return None, None
 
 
-def render_dsl(book_dsl, isbn2book, default_template):
+def render_dsl(book_dsl, db_manager, default_template):
     isbn = book_dsl.get('isbn', None)
     template = book_dsl.get('template', None) or default_template
 
@@ -125,13 +116,10 @@ def render_dsl(book_dsl, isbn2book, default_template):
     if isbn is None or template is None:
         raise RuntimeError('missing isbn or template.')
 
-    if isbn not in isbn2book:
-        raise RuntimeError('invalid isbn.')
-
-    return template.format(**isbn2book[isbn])
+    return template.format(**db_manager.book(isbn))
 
 
-def replace_dsl(text, start, end, isbn2book, default_template):
+def replace_dsl(text, start, end, db_manager, default_template):
     # {{......}}
     #   ^ i   ^ end
     i = start + 2
@@ -159,10 +147,10 @@ def replace_dsl(text, start, end, isbn2book, default_template):
 
     # parse.
     book_dsl = pytoml.loads(''.join(toml_stats).replace('\\', '\\\\'))
-    return render_dsl(book_dsl, isbn2book, default_template)
+    return render_dsl(book_dsl, db_manager, default_template)
 
 
-def replace_all_dsl(text, isbn2book):
+def replace_all_dsl(text, db_manager):
     text, default_template = extract_default_template(text)
     n = len(text)
 
@@ -178,7 +166,7 @@ def replace_all_dsl(text, isbn2book):
         # gap.
         doc.append(text[begin:i])
         # process stat.
-        doc.append(replace_dsl(text, i, j, isbn2book, default_template))
+        doc.append(replace_dsl(text, i, j, db_manager, default_template))
 
         # move to next stat.
         begin = j + 1

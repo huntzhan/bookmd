@@ -5,11 +5,14 @@ from __future__ import (
 from builtins import *                  # noqa
 from future.builtins.disabled import *  # noqa
 
+import os
+from bookmd.db import BookDBManager
 from bookmd.utils import replace_all_dsl, extract_default_template
 
 
 def test_simple():
-    isbn2book = {
+    db_manager = BookDBManager(os.getcwd())
+    db_manager.isbn2book = {
         '123': {
             'a': 'test 1',
             'b': {
@@ -26,7 +29,7 @@ def test_simple():
         'mark 2 {{ isbn = "234" template = "{a}" }}'
     )
 
-    ret = replace_all_dsl(text, isbn2book)
+    ret = replace_all_dsl(text, db_manager)
     assert ret == 'mark 1 test 1 nested mark 2 test 2'
 
 
